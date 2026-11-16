@@ -1,0 +1,21 @@
+# Biến môi trường chứa mật khẩu thật
+.env
+.env.local
+.env.*.local
+
+# Thư mục thư viện & build
+node_modules/
+dist/
+build/
+.next/
+
+# Thư mục lưu tệp đính kèm người dùng upload khi chạy demo
+backend/storage/*
+!backend/storage/.gitkeep
+
+# File hệ điều hành & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
