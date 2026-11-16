@@ -837,6 +837,26 @@ describe("Deadline & Working Days API (Task 1.4.2)", () => {
     }
   });
 
+  it("Từ chối yêu cầu nhiệm vụ khi thiếu phiên hợp lệ", async () => {
+    const requests = [
+      { url: "/api/tasks", method: "GET" },
+      { url: "/api/tasks/1", method: "GET" },
+      {
+        url: "/api/tasks/1/progress",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_status: "IN_PROGRESS", progress_percent: 10 }),
+      },
+    ];
+
+    for (const request of requests) {
+      const response = await fetch(`${testServer.baseUrl}${request.url}`, request);
+      assert.equal(response.status, 401, request.url);
+      const body = await response.json();
+      assert.equal(body.error.code, "UNAUTHORIZED", request.url);
+    }
+  });
+
   it("1. Tính đúng ngày làm việc (bỏ qua thứ Bảy, Chủ nhật và ngày lễ) và trạng thái hạn", async () => {
     const sid = await loginAs(testServer.baseUrl, "tp.vhxh");
 
@@ -1052,6 +1072,13 @@ describe("Deadline & Working Days API (Task 1.4.2)", () => {
     );
     const cvList = await cvListRes.json();
     assert.ok(cvList.data.items.every((t) => t.assignee_id === 5));
+    assert.ok(cvList.data.items.some((t) => t.task_id === 1));
+
+    // Chuyên viên xem được chi tiết nhiệm vụ được giao cho mình
+    const ownDetail = await fetch(`${testServer.baseUrl}/api/tasks/1`, {
+      headers: { Authorization: `Bearer ${cvYtSid}` },
+    });
+    assert.equal(ownDetail.status, 200);
 
     // Trưởng phòng thấy đủ cả 6 nhiệm vụ
     const tpListRes = await fetch(
@@ -1080,6 +1107,20 @@ describe("Deadline & Working Days API (Task 1.4.2)", () => {
       },
     );
     assert.equal(forbiddenUpdate.status, 403);
+
+    // Lãnh đạo xem được nhiệm vụ nhưng không được cập nhật thay người được giao
+    const leaderUpdate = await fetch(
+      `${testServer.baseUrl}/api/tasks/2/progress`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tpSid}`,
+        },
+        body: JSON.stringify({ new_status: "IN_PROGRESS", progress_percent: 50 }),
+      },
+    );
+    assert.equal(leaderUpdate.status, 403);
 
     // Task không tồn tại -> 404
     const notFoundRes = await fetch(`${testServer.baseUrl}/api/tasks/9999`, {
