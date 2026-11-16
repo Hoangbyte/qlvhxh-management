@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const express = require("express");
 const { getPool } = require("./src/config/db");
 const authRoutes = require("./src/routes/authRoutes");
+const taskRoutes = require("./src/routes/taskRoutes");
 const {
   mapErrorToHttp,
   sendError,
@@ -43,6 +44,8 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/deadlines", taskRoutes);
 
 app.use("/api", (req, res) => {
   return sendError(
