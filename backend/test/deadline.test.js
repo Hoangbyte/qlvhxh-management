@@ -1088,6 +1088,17 @@ describe("Deadline & Working Days API (Task 1.4.2)", () => {
     assert.equal(notFoundRes.status, 404);
   });
 
+  it("Chỉ vai trò được cấp quyền mới được sinh thông báo hạn toàn phòng", async () => {
+    const { generateDeadlineNotifications } = require("../src/services/deadlineService");
+
+    for (const roleCode of ["PTP", "CV_VHXH", undefined]) {
+      await assert.rejects(
+        generateDeadlineNotifications({ roleCode, today: "2026-11-16" }),
+        (error) => error.status === 403 && error.code === "FORBIDDEN",
+      );
+    }
+  });
+
   it("6. Job sinh thông báo sắp hạn/quá hạn chạy nhiều lần trong ngày không trùng (dedupe)", async () => {
     const tpSid = await loginAs(testServer.baseUrl, "tp.vhxh");
 

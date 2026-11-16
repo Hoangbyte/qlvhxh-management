@@ -102,8 +102,7 @@ async function handleGenerateDeadlineNotifications(req, res, next) {
   try {
     const body = req.body || {};
     const data = await deadlineService.generateDeadlineNotifications({
-      userId: req.auth.user.user_id,
-      roleId: req.auth.active_role.role_id,
+      roleCode: req.auth.active_role.code,
       today: body.today ?? req.query.today,
     });
     return sendSuccess(res, data);

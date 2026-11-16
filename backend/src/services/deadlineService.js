@@ -11,7 +11,7 @@ const VALID_DEADLINE_STATES = new Set([
   "CANCELLED",
   "ALERT",
 ]);
-const SETTINGS_MANAGER_ROLES = new Set(["PCT", "TP"]);
+const DEADLINE_MANAGER_ROLES = new Set(["PCT", "TP"]);
 
 function parsePositiveInt(value, fieldLabel) {
   if (value === undefined || value === null || value === "") {
@@ -275,7 +275,7 @@ async function updateDeadlineSettings({
   dueSoonWorkingDays,
   ipAddress,
 }) {
-  if (!SETTINGS_MANAGER_ROLES.has(roleCode)) {
+  if (!DEADLINE_MANAGER_ROLES.has(roleCode)) {
     throw new AppError(
       403,
       "FORBIDDEN",
@@ -867,7 +867,16 @@ async function updateTaskProgress({
   });
 }
 
-async function generateDeadlineNotifications({ today }) {
+async function generateDeadlineNotifications({ roleCode, today }) {
+  if (!DEADLINE_MANAGER_ROLES.has(roleCode)) {
+    throw new AppError(
+      403,
+      "FORBIDDEN",
+      "Chỉ Phó Chủ tịch hoặc Trưởng phòng mới được sinh thông báo hạn toàn phòng.",
+      50403,
+    );
+  }
+
   const effectiveToday = parseIsoDate(today, "Ngày mốc (today)");
   const pool = await getPool();
 
