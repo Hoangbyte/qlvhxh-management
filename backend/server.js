@@ -2,71 +2,89 @@ const path = require("node:path");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const express = require("express");
-const sql = require("mssql");
+const { getPool } = require("./src/config/db");
+const authRoutes = require("./src/routes/authRoutes");
+const {
+  mapErrorToHttp,
+  sendError,
+  sendSuccess,
+} = require("./src/utils/apiResponse");
 
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
 const app = express();
 const PORT = Number(process.env.PORT || 8080);
-const dbConfig = {
-  server: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 1433),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  connectionTimeout: 5000,
-  requestTimeout: 5000,
-  options: {
-    encrypt: process.env.DB_ENCRYPT === "true",
-    trustServerCertificate:
-      process.env.DB_TRUST_SERVER_CERTIFICATE === "true",
-  },
-};
 
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
   }),
 );
-
-let poolPromise;
-
-function getPool() {
-  if (!poolPromise) {
-    const pool = new sql.ConnectionPool(dbConfig);
-    poolPromise = pool.connect().catch((error) => {
-      poolPromise = undefined;
-      throw error;
-    });
-  }
-
-  return poolPromise;
-}
+app.use(express.json());
 
 app.get("/api/health", async (req, res) => {
   try {
     const pool = await getPool();
     await pool.request().query("SELECT 1 AS [health_check]");
 
-    return res.status(200).json({
-      success: true,
-      data: {
-        database: "connected",
-      },
+    return sendSuccess(res, {
+      database: "connected",
     });
   } catch (error) {
     console.error("SQL Server health check failed:", error.message);
 
-    return res.status(503).json({
-      success: false,
-      error: {
-        code: "DATABASE_UNAVAILABLE",
-        message: "Không thể kết nối SQL Server.",
-      },
-    });
+    return sendError(
+      res,
+      503,
+      "DATABASE_UNAVAILABLE",
+      "Không thể kết nối SQL Server.",
+    );
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.use("/api/auth", authRoutes);
+
+app.use("/api", (req, res) => {
+  return sendError(
+    res,
+    404,
+    "NOT_FOUND",
+    "Không tìm thấy đường dẫn API yêu cầu.",
+  );
 });
+
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && "body" in error) {
+    return sendError(
+      res,
+      400,
+      "BAD_REQUEST",
+      "Dữ liệu JSON gửi lên không hợp lệ.",
+      50400,
+    );
+  }
+
+  const mapped = mapErrorToHttp(error);
+  if (mapped.status === 500) {
+    console.error("Unhandled API error:", error);
+  }
+
+  return sendError(
+    res,
+    mapped.status,
+    mapped.code,
+    mapped.message,
+    mapped.sqlError,
+  );
+});
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+module.exports = {
+  app,
+  getPool,
+};
