@@ -9,6 +9,29 @@
   - Văn bản: `/api/documents`, `/api/documents/:id`
   - Thông báo: `/api/notifications`, `/api/notifications/:id/read`
 
+### Health check
+- `GET /api/health` chạy `SELECT 1` trên SQL Server đã cấu hình.
+- Khi truy vấn thành công, trả HTTP 200:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "database": "connected"
+    }
+  }
+  ```
+- Khi không kết nối hoặc truy vấn thất bại, trả HTTP 503:
+  ```json
+  {
+    "success": false,
+    "error": {
+      "code": "DATABASE_UNAVAILABLE",
+      "message": "Không thể kết nối SQL Server."
+    }
+  }
+  ```
+- Response lỗi không bao gồm mật khẩu, chuỗi kết nối hoặc stack trace.
+
 ## 2. Xác thực phiên (Authentication)
 - Sau khi đăng nhập thành công, Backend trả về `session_id` (kiểu UUID từ bảng `dbo.user_sessions`).
 - Mọi request cần đăng nhập phải gửi kèm Header:
@@ -35,7 +58,7 @@
 ```
 *(Trường `meta` chỉ bắt buộc với các API có phân trang).*
 
-### 3.2. Khi có lỗi (HTTP 400 / 401 / 403 / 404 / 409 / 500)
+### 3.2. Khi có lỗi (HTTP 400 / 401 / 403 / 404 / 409 / 500 / 503)
 ```json
 {
   "success": false,
